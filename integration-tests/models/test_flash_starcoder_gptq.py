@@ -44,6 +44,6 @@ async def test_flash_starcoder_gptq_load(flash_starcoder_gptq, generate_load, re
     responses = await generate_load(flash_starcoder_gptq, "def geometric_mean(L: List[float]):", max_new_tokens=10, n=4)
 
     assert len(responses) == 4
-    assert all([r.generated_text == responses[0].generated_text for r in responses])
+    assert all(r.generated_text == responses[0].generated_text for r in responses)
 
     assert responses == response_snapshot

@@ -63,18 +63,12 @@ class FastLinear(nn.Module):
     ) -> None:
         super().__init__()
         self.weight = nn.Parameter(weight)
-        if bias is not None:
-            self.bias = nn.Parameter(bias)
-        else:
-            self.bias = None
+        self.bias = nn.Parameter(bias) if bias is not None else None
 
     @classmethod
     def load(cls, config, prefix: str, weights, bias: bool):
         weight = weights.get_tensor(f"{prefix}.weight")
-        if bias:
-            bias = weights.get_tensor(f"{prefix}.bias")
-        else:
-            bias = None
+        bias = weights.get_tensor(f"{prefix}.bias") if bias else None
         return cls(weight, bias)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
@@ -156,7 +150,7 @@ def get_linear(weight, bias, quantize):
             qweight, qzeros, scales, g_idx, bits, groupsize, use_exllama = weight
         except Exception:
             raise NotImplementedError(
-                f"The passed weight is not `gptq` compatible, loader needs to be updated."
+                "The passed weight is not `gptq` compatible, loader needs to be updated."
             )
 
         if use_exllama:
@@ -207,10 +201,7 @@ class TensorParallelHead(SuperLayer):
             should_gather = False
 
         # GPTQ doesn't quantize heads (nor embeddings)
-        if config.quantize == "gptq":
-            quantize = None
-        else:
-            quantize = config.quantize
+        quantize = None if config.quantize == "gptq" else config.quantize
         return TensorParallelHead(
             get_linear(weight, bias=None, quantize=quantize),
             process_group=weights.process_group,
@@ -240,10 +231,7 @@ class TensorParallelHead(SuperLayer):
                 world_out, gather_input, group=self.process_group
             )
 
-            if input.shape[0] == 1:
-                return world_out
-            return world_out.T
-
+            return world_out if input.shape[0] == 1 else world_out.T
         output = super().forward(input)
         world_output = [
             torch.empty_like(output) for _ in range(self.process_group.size())
